@@ -1,0 +1,13 @@
+name: Hadolint
+
+on: push
+
+jobs:
+  RunHadolint:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1
+    - name: Lint
+      run: |
+        cat Dockerfile | docker run -i hadolint/hadolint:v1.17.2
