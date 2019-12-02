@@ -1,5 +1,5 @@
 ![](https://github.com/m-pilia/colmap-docker/workflows/Hadolint/badge.svg)
-![](https://img.shields.io/docker/build/martinopilia/colmap)
+![](https://img.shields.io/docker/cloud/build/martinopilia/colmap)
 
 # Colmap docker
 
