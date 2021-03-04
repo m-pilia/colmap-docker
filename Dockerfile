@@ -1,19 +1,16 @@
-FROM nvidia/cuda:10.2-devel-ubuntu18.04
+FROM nvidia/cuda:10.2-devel-ubuntu18.04 as builder
 
-LABEL maintainer="Martino Pilia <martino.pilia@gmail.com>"
-
-SHELL ["/bin/bash", "-c"]
+SHELL ["/bin/bash", "-xeu", "-o", "pipefail", "-c"]
 
 ENV DEBIAN_FRONTEND non-interactive
 ENV DEBCONF_NOWARNINGS yes
 
 # Install depencencies
 
-# hadolint ignore=DL3008
-RUN set -xeuo pipefail \
-&&  apt-get update -y -qq \
+RUN apt-get update -y -qq \
 &&  apt-get install -y -qq --no-install-recommends \
     build-essential \
+    ca-certificates \
     cmake \
     git \
     libatlas-base-dev \
@@ -32,16 +29,14 @@ RUN set -xeuo pipefail \
     libgoogle-glog-dev \
     libqt5opengl5-dev \
     libsuitesparse-dev \
-    libsuitesparse-dev \
     qtbase5-dev \
-    vim \
 &&  apt-get autoremove -y -qq \
 &&  rm -rf /var/lib/apt/lists/*
 
 ARG SOURCE_DIR=/sources
 ARG CERES_SOURCE_DIR=${SOURCE_DIR}/ceres-solver
 ARG COLMAP_SOURCE_DIR=${SOURCE_DIR}/colmap
-ARG CMAKE_INSTALL_PREFIX=/usr
+ARG CMAKE_INSTALL_PREFIX=/usr/local
 
 # Get sources
 
@@ -57,8 +52,7 @@ ARG CERES_SOLVER_COMMIT=facb199f3e
 RUN mkdir -p "${CERES_SOURCE_DIR}/build"
 WORKDIR ${CERES_SOURCE_DIR}/build
 
-RUN set -xeuo pipefail \
-&&  git checkout "${CERES_SOLVER_COMMIT}" \
+RUN git checkout "${CERES_SOLVER_COMMIT}" \
 &&  git rev-parse HEAD > /ceres-solver-version \
 &&  cmake .. \
         -DCMAKE_BUILD_TYPE:STRING=Release \
@@ -75,18 +69,59 @@ ARG COLMAP_COMMIT=f3d7aae3fd
 RUN mkdir -p "${COLMAP_SOURCE_DIR}/build"
 WORKDIR ${COLMAP_SOURCE_DIR}/build
 
-RUN set -xeuo pipefail \
-&&  git checkout "${COLMAP_COMMIT}" \
+RUN git checkout "${COLMAP_COMMIT}" \
 &&  git rev-parse HEAD > /colmap-version \
 &&  cmake .. \
+        -DCMAKE_BUILD_TYPE:STRING=Release \
+        -DCMAKE_INSTALL_PREFIX:PATH="${CMAKE_INSTALL_PREFIX}" \
+        -DBUILD_TESTING:BOOL=OFF \
+        -DBUILD_EXAMPLES:BOOL=OFF \
 &&  make -j4 \
 &&  make install
 
-# Cleanup
+# Create final image
 
-WORKDIR /
+FROM nvidia/cuda:10.2-devel-ubuntu18.04
 
-RUN rm -rf "${SOURCE_DIR}"
+LABEL maintainer="Martino Pilia <martino.pilia@gmail.com>"
+
+# Install runtime dependencies
+RUN apt-get update -y -qq \
+&&  apt-get install -y -qq --no-install-recommends \
+    libatlas3-base \
+    libboost-filesystem1.65.1 \
+    libboost-graph1.65.1 \
+    libboost-program-options1.65.1 \
+    libboost-regex1.65.1 \
+    libboost-system1.65.1 \
+    libboost-test1.65.1 \
+    libcgal13 \
+    libcgal-qt5-13 \
+    libfreeimage3 \
+    libgflags2.2 \
+    libglew2.0 \
+    libgoogle-glog0v5 \
+    libqt5opengl5 \
+    libamd2 \
+    libbtf1 \
+    libcamd2 \
+    libccolamd2 \
+    libcholmod3 \
+    libcolamd2 \
+    libcxsparse3 \
+    libgraphblas1 \
+    libklu1 \
+    libldl2 \
+    librbio2 \
+    libspqr2 \
+    libsuitesparseconfig5 \
+    libumfpack5 \
+&&  apt-get autoremove -y -qq \
+&&  rm -rf /var/lib/apt/lists/*
+
+# Copy build artifacts
+COPY --from=builder /usr/local /usr/local
+COPY --from=builder /*-version /
 
 # nvidia-container-runtime
 ENV NVIDIA_VISIBLE_DEVICES ${NVIDIA_VISIBLE_DEVICES:-all}

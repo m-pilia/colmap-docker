@@ -1,0 +1,2 @@
+ignored:
+  - DL3008 # pin package versions with apt-get

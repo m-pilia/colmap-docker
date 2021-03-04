@@ -10,4 +10,4 @@ jobs:
       uses: actions/checkout@v1
     - name: Lint
       run: |
-        cat Dockerfile | docker run -i hadolint/hadolint:v1.17.2
+          docker run -v"$(pwd):/mnt" -w/mnt -i hadolint/hadolint:v1.23.0 hadolint Dockerfile
